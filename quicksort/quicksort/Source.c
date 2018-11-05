@@ -59,19 +59,11 @@ void quickSort(int size, int* toSort) {
         moreCount = toSort[moreCount] > pivot ? moreCount - 1 : moreCount;        
       }      
     }
-
     
     // swap pivot back and recursively call qp
     swap(&toSort[lessCount], &toSort[size-1]);
     quickSort(lessCount, toSort);
-    quickSort(size - moreCount-1, &toSort[lessCount]);
-
-
-    printf("\n\nPost qp: ");
-    for(int i = 0; i < size; ++i) {
-      printf("%d, \n", toSort[i]);
-    }
-    printf("\n\n");
+    quickSort(size - moreCount-1, &toSort[lessCount]);    
   }
 }
 
@@ -81,25 +73,43 @@ void quickSort(int size, int* toSort) {
 
 
 
-int main() {
+int main(int argc, char** argv) {
 
+  int arraySize;
+  int biggestElement;
+
+  if(argc == 2) {
+    arraySize = atoi(argv[1]);
+  }
+  else if(argc == 3) {
+    arraySize = atoi(argv[1]);
+    biggestElement = atoi(argv[2]);
+  }
+  else {
+    arraySize = 1000;
+    biggestElement = 10000;
+  }
+  
   srand(time(NULL));
     
   int* myArray;
 
-  myArray = (int*)malloc(1000*sizeof(int));
+  myArray = (int*)malloc(arraySize*sizeof(int));
 
 
-  for(int i = 0; i < 1000; ++i) {
-    myArray[i] = rand() % 10000;
+  for(int i = 0; i < arraySize; ++i) {
+    myArray[i] = rand() % biggestElement;
   }
+  
 
-  for(int i = 0; i < 1000; ++i) {
-    printf("%d\n", myArray[i]);
+  quickSort(arraySize, myArray);
+
+  
+  for(int i = 0; i < arraySize; ++i) {
+    printf("%d, ", myArray[i]);
   }
-
-  quickSort(1000, myArray);
-
+  printf("\n\n");
+  printf("Array Size: %d", arraySize);
 
   free(myArray);
 }
