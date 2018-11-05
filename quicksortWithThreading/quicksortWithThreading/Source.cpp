@@ -3,6 +3,8 @@
 #include<thread>
 #include<mutex>
 #include<vector>
+#include<memory>
+#include<utility>
 
 
 using namespace std;
@@ -15,6 +17,7 @@ thread*        threadArray = nullptr;
 int insertionSortSize = 1000;
 
 struct arrayStruct{
+  arrayStruct(){};
   arrayStruct(int s, int* a) : size{s}, _array{a}{}
   int size;
   int* _array;
@@ -25,6 +28,11 @@ vector<arrayStruct> _arrayStruct;
 bool threadsActive = false;
 
 
+
+
+
+
+
 void swap(int* s1, int* s2) {
   int tmp = *s1;
   *s1 = *s2;
@@ -33,17 +41,20 @@ void swap(int* s1, int* s2) {
 
 
 
-void insertionSort(arrayStruct* sortObj) {
+
+
+
+void insertionSort(arrayStruct&& sortObj) {
 
 
 
   int j;
-  for(int i = 1; i < sortObj->size; ++i) {
+  for(int i = 1; i < sortObj.size; ++i) {
 
-    if(sortObj->_array[i] < sortObj->_array[i - 1]) {
+    if(sortObj._array[i] < sortObj._array[i - 1]) {
       j = i;
-      while(sortObj->_array[j] < sortObj->_array[j - 1]) {
-        swap(&sortObj->_array[j - 1], &sortObj->_array[j]);
+      while(sortObj._array[j] < sortObj._array[j - 1]) {
+        swap(&sortObj._array[j - 1], &sortObj._array[j]);
         j--;
       }
     }
@@ -52,62 +63,62 @@ void insertionSort(arrayStruct* sortObj) {
 
 
 
-pair<arrayStruct, arrayStruct>&& partitionArray(int size, int* toSort, arrayStruct* _arrayPair=nullptr) {
 
-  int pivot = (toSort[0] + toSort[size / 2] + toSort[size - 1]) / 3;
+
+
+pair<arrayStruct, arrayStruct>&& partitionArray(arrayStruct&& sortObj) {
+
+  int* _array = sortObj._array;
+  int size = sortObj.size;
+
+  int pivot = (_array[0] + _array[size / 2] + _array[size - 1]) / 3;
   int lessCount = 0;
   int moreCount = size - 1;
 
 
   while (lessCount <= moreCount) {
 
-    if (toSort[lessCount] >= pivot && toSort[moreCount] < pivot) {
-      swap(&toSort[lessCount++], &toSort[moreCount--]);
+    if (_array[lessCount] >= pivot && _array[moreCount] < pivot) {
+      swap(&_array[lessCount++], &_array[moreCount--]);
     }
-    if (toSort[lessCount] < pivot) ++lessCount;
-    if (toSort[moreCount] >= pivot) --moreCount;
+    if (_array[lessCount] < pivot) ++lessCount;
+    if (_array[moreCount] >= pivot) --moreCount;
   }
-
-  return pair<arrayStruct, arrayStruct>({lessCount, toSort}, {size - lessCount, &toSort[lessCount]});
+  
+  return move(pair<arrayStruct, arrayStruct>{{ lessCount, _array }, {size - lessCount, &_array[lessCount]}});
 }
 
 
-void quickSort(arrayStruct* sortObj) {
+
+
+
+
+
+void quickSort(arrayStruct&& sortObj) {
   
-  if (sortObj->size < insertionSortSize) {
-    insertionSort(sortObj);
+  if (sortObj.size < insertionSortSize) {
+    insertionSort(move(sortObj));
     return;
   }
   else {
-
-
+    pair<arrayStruct, arrayStruct> _pair = partitionArray(move(sortObj));
+    quickSort(move(_pair.first));
+    quickSort(move(_pair.second));
   }
 }
-/*
-partitionArray(lessCount, toSort);
-partitionArray(size - moreCount - 1, &toSort[lessCount]);
 
-if (recursionLevel < threadcount) {
-  _arrayStruct.emplace_back(lessCount, toSort);
-  _arrayStruct.emplace_back(size - lessCount, &toSort[lessCount]);
-}
 
-if (!threadsActive) {
-  for (auto a : _arrayStruct) {
-    threadArray[activeThreadCounter++] = thread{a.size, a._array};
-  }
-  threadsActive = true;
-}*/
+
+
 
 
 int main(int argc, char** argv) {
 
   int            arraySize=1000;
   int            biggestElement=10000;
-
   random_device  rd;
   int*           myArray;
-
+  arrayStruct*   partitionContainer = nullptr;
 
   if(argc == 2) {
     arraySize = atoi(argv[1]);
@@ -123,20 +134,43 @@ int main(int argc, char** argv) {
     biggestElement = atoi(argv[2]);
 
     threadArray = new thread[threadcount];
+    partitionContainer = new arrayStruct[threadcount];
   }  
   
   myArray = new int[arraySize];
+
+
 
 
   for(int i = 0; i < arraySize; ++i) {
     myArray[i] = rd() % biggestElement;
   }
 
-  partitionArray(arraySize, myArray);
 
-  /*for(int i = 0; i < threadcount; ++i) {
+
+  if (threadcount != 0) {
+
+    for (int i = 0; i < threadcount/2; ++i) {
+      
+      pair<arrayStruct, arrayStruct>_tmpPair =partitionArray({arraySize, myArray});
+      partitionContainer[i] = move(_tmpPair.first);
+      partitionContainer[i+1] = move(_tmpPair.second);
+    }
+    for (int i = 0; i < threadcount; ++i) {
+      threadArray[i] = thread{quickSort, partitionContainer[i]};
+    }
+  }
+  else {
+    quickSort({arraySize, myArray});
+  }
+
+
+
+  
+
+  for (int i = 0; i < threadcount; ++i) {
     threadArray[i].join();
-  }*/
+  }
   
 
   for(int i = 0; i < arraySize; ++i) {
