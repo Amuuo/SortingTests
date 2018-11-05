@@ -2,15 +2,27 @@
 #include<random>
 #include<thread>
 #include<mutex>
+#include<vector>
+
 
 using namespace std;
 
 int            threadcount = 0;
 int            activeThreadCounter = 0;
 int            recursionLevel = 0;
-bool           currentlyThreading = false;
 mutex          mtx;
 thread*        threadArray = nullptr;
+int insertionSortSize = 1000;
+
+struct arrayStruct{
+  arrayStruct(int s, int* a) : size{s}, _array{a}{}
+  int size;
+  int* _array;
+};
+
+vector<arrayStruct> _arrayStruct;
+
+bool threadsActive = false;
 
 
 void swap(int* s1, int* s2) {
@@ -21,17 +33,17 @@ void swap(int* s1, int* s2) {
 
 
 
-void insertionSort(int size, int* toSort) {
+void insertionSort(arrayStruct* sortObj) {
 
 
 
   int j;
-  for(int i = 1; i < size; ++i) {
+  for(int i = 1; i < sortObj->size; ++i) {
 
-    if(toSort[i] < toSort[i - 1]) {
+    if(sortObj->_array[i] < sortObj->_array[i - 1]) {
       j = i;
-      while(toSort[j] < toSort[j - 1]) {
-        swap(&toSort[j - 1], &toSort[j]);
+      while(sortObj->_array[j] < sortObj->_array[j - 1]) {
+        swap(&sortObj->_array[j - 1], &sortObj->_array[j]);
         j--;
       }
     }
@@ -40,61 +52,52 @@ void insertionSort(int size, int* toSort) {
 
 
 
-void quickSort(int size, int* toSort) {
+pair<arrayStruct, arrayStruct>&& partitionArray(int size, int* toSort, arrayStruct* _arrayPair=nullptr) {
 
-  if(activeThreadCounter != threadcount && recursionLevel == (threadcount/2)) return;
-  /*
-  if(activeThreadCounter != threadcount && recursionLevel - activeThreadCounter == 2) {
-    return;
-  }*/
-  else if(size < 100) {
-    insertionSort(size, toSort);
-    return;
+  int pivot = (toSort[0] + toSort[size / 2] + toSort[size - 1]) / 3;
+  int lessCount = 0;
+  int moreCount = size - 1;
+
+
+  while (lessCount <= moreCount) {
+
+    if (toSort[lessCount] >= pivot && toSort[moreCount] < pivot) {
+      swap(&toSort[lessCount++], &toSort[moreCount--]);
+    }
+    if (toSort[lessCount] < pivot) ++lessCount;
+    if (toSort[moreCount] >= pivot) --moreCount;
   }
 
-  else {
-
-    ++recursionLevel;
-
-    // swap pivot and assign
-    swap(&toSort[size / 2], &toSort[size - 1]);
-    int lessCount = 0, moreCount = size - 2;
-    int pivot = toSort[size - 1];
-
-
-    // swap array elements around piviot
-    for(; lessCount <= moreCount;) {
-
-      if(toSort[lessCount] > pivot && toSort[moreCount] <= pivot) {
-        swap(&toSort[lessCount++], &toSort[moreCount--]);
-      }
-      else {
-        lessCount = toSort[lessCount] <= pivot?lessCount + 1:lessCount;
-        moreCount = toSort[moreCount] > pivot?moreCount - 1:moreCount;
-      }
-    }
-    
-    
-
-    if(activeThreadCounter < threadcount) {
-      swap(&toSort[lessCount], &toSort[size - 1]);      
-      quickSort(lessCount, toSort);
-      quickSort(size - moreCount - 1, &toSort[lessCount]);
-      threadArray[activeThreadCounter++] = thread{quickSort, lessCount, toSort};
-      threadArray[activeThreadCounter++] = thread{quickSort, size - moreCount - 1, &toSort[lessCount]};
-      
-    }
-    else if(activeThreadCounter == threadcount) {
-      quickSort(lessCount, toSort);
-      quickSort(size - moreCount - 1, &toSort[lessCount]);
-    }
-  }
+  return pair<arrayStruct, arrayStruct>({lessCount, toSort}, {size - lessCount, &toSort[lessCount]});
 }
 
 
+void quickSort(arrayStruct* sortObj) {
+  
+  if (sortObj->size < insertionSortSize) {
+    insertionSort(sortObj);
+    return;
+  }
+  else {
 
 
+  }
+}
+/*
+partitionArray(lessCount, toSort);
+partitionArray(size - moreCount - 1, &toSort[lessCount]);
 
+if (recursionLevel < threadcount) {
+  _arrayStruct.emplace_back(lessCount, toSort);
+  _arrayStruct.emplace_back(size - lessCount, &toSort[lessCount]);
+}
+
+if (!threadsActive) {
+  for (auto a : _arrayStruct) {
+    threadArray[activeThreadCounter++] = thread{a.size, a._array};
+  }
+  threadsActive = true;
+}*/
 
 
 int main(int argc, char** argv) {
@@ -129,18 +132,19 @@ int main(int argc, char** argv) {
     myArray[i] = rd() % biggestElement;
   }
 
-  quickSort(arraySize, myArray);
-  for(int i = 0; i < threadcount; ++i) {
+  partitionArray(arraySize, myArray);
+
+  /*for(int i = 0; i < threadcount; ++i) {
     threadArray[i].join();
-  }
+  }*/
   
-  if(argc == 5) {
-    for(int i = 0; i < arraySize; ++i) {
-      std::printf("%d, ", myArray[i]);
-    }
-    std::printf("\n\n");
-    std::printf("Array Size: %d", arraySize);
+
+  for(int i = 0; i < arraySize; ++i) {
+    std::printf("%d, ", myArray[i]);
   }
+  std::printf("\n\n");
+  std::printf("Array Size: %4d", arraySize);
+  
 
   delete[] myArray;
 }
