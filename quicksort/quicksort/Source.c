@@ -1,9 +1,6 @@
-#include<iostream>
-#include<random>
-#include<vector>
-
-using namespace std;
-
+#include<stdio.h>
+#include<stdlib.h>
+#include<time.h>
 
 
 
@@ -30,23 +27,13 @@ void insertionSort(int size, int* toSort) {
       }
     }
   }
-  vector<int> debugArray;
-  for(int i = 0; i < size - 1; ++i) {
-    debugArray.push_back(toSort[i]);
-  }
 }
 
 
 
 void quickSort(int size, int* toSort) {
 
-  
-  vector<int> debugArray;
-  for(int i = 0; i < size - 1; ++i) {
-    debugArray.push_back(toSort[i]);
-  }  
-  
-  
+ 
   if(size < 100) {
     insertionSort(size, toSort);
     return;
@@ -68,8 +55,8 @@ void quickSort(int size, int* toSort) {
         swap(&toSort[lessCount++], &toSort[moreCount--]);        
       }      
       else {        
-        lessCount = toSort[lessCount] < pivot?lessCount + 1:lessCount;
-        moreCount = toSort[moreCount] >= pivot ? moreCount - 1 : moreCount;        
+        lessCount = toSort[lessCount] <= pivot?lessCount + 1:lessCount;
+        moreCount = toSort[moreCount] > pivot ? moreCount - 1 : moreCount;        
       }      
     }
 
@@ -80,11 +67,11 @@ void quickSort(int size, int* toSort) {
     quickSort(size - moreCount-1, &toSort[lessCount]);
 
 
-    cout << "\n\nPost qp: ";
+    printf("\n\nPost qp: ");
     for(int i = 0; i < size; ++i) {
-      cout << toSort[i] << ", " << endl;
+      printf("%d, \n", toSort[i]);
     }
-    cout << "\n\n";
+    printf("\n\n");
   }
 }
 
@@ -96,20 +83,23 @@ void quickSort(int size, int* toSort) {
 
 int main() {
 
-  std::random_device rd;
-  int* myArray = new int[1000];
+  srand(time(NULL));
+    
+  int* myArray;
+
+  myArray = (int*)malloc(1000*sizeof(int));
 
 
   for(int i = 0; i < 1000; ++i) {
-    myArray[i] = rd() % 10000;
+    myArray[i] = rand() % 10000;
   }
 
   for(int i = 0; i < 1000; ++i) {
-    std::cout << myArray[i] << std::endl;
+    printf("%d\n", myArray[i]);
   }
 
   quickSort(1000, myArray);
 
-  int pause;
-  std::cin >> pause;
+
+  free(myArray);
 }
