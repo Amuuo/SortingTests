@@ -24,10 +24,10 @@ struct arrayStruct{
 struct partitionContainer {
   
   partitionContainer() {}
-  partitionContainer(arrayStruct a) : subArray{new arrayStruct{a}} {}
+  partitionContainer(arrayStruct a) : subArray{new arrayStruct{a}} {}  
   arrayStruct* subArray;
-  partitionContainer* left = nullptr;
-  partitionContainer* right = nullptr;
+  partitionContainer* left;
+  partitionContainer* right;
 };
 
 
@@ -83,10 +83,14 @@ void insertionSort(arrayStruct sortObj) {
 
 
 
-pair<arrayStruct, arrayStruct> partitionArray(arrayStruct sortObj) {
+void sortAroundPivot() {
 
-  int* _array = sortObj._array;
-  int size = sortObj.size;
+}
+
+void partitionArray(partitionContainer* sortObj) {
+
+  int* _array = sortObj->subArray->_array;
+  int size = sortObj->subArray->size;
 
   int pivot = (_array[0] + _array[size / 2] + _array[size - 1]) / 3;
   int lessCount = 0;
@@ -104,7 +108,9 @@ pair<arrayStruct, arrayStruct> partitionArray(arrayStruct sortObj) {
     }
   }
   
-  return pair<arrayStruct, arrayStruct>{{ lessCount, _array }, {size - lessCount, &_array[lessCount]}};
+  sortObj->left = new partitionContainer{{lessCount, sortObj->subArray->_array}};
+  sortObj->right = new partitionContainer{{size - lessCount, &sortObj->subArray->_array[lessCount]}};
+
 }
 
 
@@ -120,9 +126,10 @@ void quickSort(arrayStruct sortObj) {
     return;
   }
   else {
-    pair<arrayStruct, arrayStruct> _pair = partitionArray(sortObj);
-    quickSort(_pair.first);
-    quickSort(_pair.second);
+    partitionContainer tmp{sortObj};
+    partitionArray(&tmp);
+    quickSort({tmp.left->subArray->size, tmp.left->subArray->_array});
+    quickSort({tmp.right->subArray->size, tmp.right->subArray->_array});
   }
 }
 
@@ -188,10 +195,7 @@ int main(int argc, char** argv) {
         return;
       }
       else {
-        pair<arrayStruct, arrayStruct> tmpPair = partitionArray(*container->subArray);
-        container->left = new partitionContainer{{tmpPair.first.size, tmpPair.first._array}};
-        container->right = new partitionContainer{{tmpPair.second.size, tmpPair.second._array}};
-      
+        partitionArray(container);
 
         fillContainer(container->left, level + 1);
         fillContainer(container->right, level + 1);
