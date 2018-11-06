@@ -6,27 +6,43 @@
 #include<memory>
 #include<utility>
 #include<functional>
-
+#include<cmath>
 
 using namespace std;
 
-int            threadcount = 0;
-int            activeThreadCounter = 0;
-int            recursionLevel = 0;
-mutex          mtx;
-thread*        threadArray = nullptr;
-int insertionSortSize = 50;
+
 
 struct arrayStruct{
+  
   arrayStruct(){};
   arrayStruct(int s, int* a) : size{s}, _array{a}{}
   int size;
   int* _array;
 };
 
-vector<arrayStruct> _arrayStruct;
 
+struct partitionContainer {
+  
+  partitionContainer() {}
+  partitionContainer(arrayStruct a) : subArray{new arrayStruct{a}} {}
+  arrayStruct* subArray;
+  partitionContainer* left = nullptr;
+  partitionContainer* right = nullptr;
+};
+
+
+
+int threadcount = 0;
+int activeThreadCounter = 0;
+int recursionLevel = 0;
+mutex mtx;
+thread* threadArray = nullptr;
+int insertionSortSize = 500;
+vector<arrayStruct> _arrayStruct;
 bool threadsActive = false;
+arrayStruct ** subArrayContainer = nullptr;
+
+
 
 
 
@@ -82,8 +98,10 @@ pair<arrayStruct, arrayStruct> partitionArray(arrayStruct sortObj) {
     if (_array[lessCount] >= pivot && _array[moreCount] < pivot) {
       swap(&_array[lessCount++], &_array[moreCount--]);
     }
-    if (_array[lessCount] < pivot) ++lessCount;
-    if (_array[moreCount] >= pivot) --moreCount;
+    else {
+      if (_array[lessCount] < pivot) ++lessCount;
+      if (_array[moreCount] >= pivot) --moreCount;
+    }
   }
   
   return pair<arrayStruct, arrayStruct>{{ lessCount, _array }, {size - lessCount, &_array[lessCount]}};
@@ -98,7 +116,7 @@ pair<arrayStruct, arrayStruct> partitionArray(arrayStruct sortObj) {
 void quickSort(arrayStruct sortObj) {
   
   if (sortObj.size < insertionSortSize) {
-    insertionSort(move(sortObj));
+    insertionSort(sortObj);
     return;
   }
   else {
@@ -119,14 +137,8 @@ int main(int argc, char** argv) {
   int            biggestElement=10000;
   random_device  rd;
   int*           myArray;
-
-  struct partitionContainer{
-    partitionContainer() {}
-    partitionContainer(arrayStruct a) : subArray{new arrayStruct{a}} {}
-    arrayStruct* subArray;
-    partitionContainer* left = nullptr;
-    partitionContainer* right = nullptr;
-  };
+  int goalHeight;
+  partitionContainer* rootContainer = nullptr;
   
   
 
@@ -144,7 +156,7 @@ int main(int argc, char** argv) {
     biggestElement = atoi(argv[2]);
 
     threadArray = new thread[threadcount];
-    partitionContainer = new arrayStruct[threadcount];
+    rootContainer = new partitionContainer[threadcount];
   }  
   
   myArray = new int[arraySize];
@@ -157,64 +169,41 @@ int main(int argc, char** argv) {
   }
 
 
-
+  goalHeight = (int)log2(threadcount);
 
   // setup threading if requested
   if (threadcount != 0) {
 
-    partitionContainer* pContainerRoot = new partitionContainer{{arraySize, myArray}};
+    partitionContainer* rootContainer = new partitionContainer{{arraySize, myArray}};
 
-    int counter = 0;
-    int level = 0;
-    
+    int arrayCounter = 0;
+
     // run recursive algorithm to fill thread tree
-    function<void(partitionContainer*)> 
-      fillContainer = [&counter, &fillContainer](partitionContainer* container) {
+    function<void(partitionContainer*, int level)>
+      fillContainer = [&goalHeight, &arrayCounter, &fillContainer]
+      (partitionContainer* container, int level) {
 
-      ++counter;
-      if (counter==threadcount) {
+      if (level == goalHeight) {
+        threadArray[arrayCounter++] = thread{quickSort, *container->subArray};
         return;
       }
       else {
         pair<arrayStruct, arrayStruct> tmpPair = partitionArray(*container->subArray);
-        container->left->subArray = new arrayStruct{tmpPair.first};
-        container->right->subArray = new arrayStruct{tmpPair.second};
-        counter += 2;
-        
-        if(!container->left)  fillContainer(container->left);
-        else if(!container->right) fillContainer(container->right);
+        container->left = new partitionContainer{{tmpPair.first.size, tmpPair.first._array}};
+        container->right = new partitionContainer{{tmpPair.second.size, tmpPair.second._array}};
       
-        
-        if (counter == threadcount) return;
-        fillContainer(container->right);
-        if (counter == threadcount) return;
+
+        fillContainer(container->left, level + 1);
+        fillContainer(container->right, level + 1);
       }
     };
-    fillContainer(pContainerRoot);
+    fillContainer(rootContainer, 0);
 
-    
-    
-
-    counter = 0;
-
-    function<void(partitionContainer*)> initializeThreads = [&counter, &initializeThreads](partitionContainer* container) {
-      if (!container) {
-        return;
-      }
-      threadArray[counter++] = thread{quickSort, container->subArray};
-      initializeThreads(container->left);
-      initializeThreads(container->right);
-    };
-
-    for (int i = 0; i < threadcount; ++i) {
+    for (int i = 0; i < goalHeight; ++i) {
       threadArray[i].join();
     }
   }
-  else {
-    quickSort({arraySize, myArray});
-  }
-
-
+  
 
 
 
